@@ -3,15 +3,15 @@ package main
 import (
 	"encoding/json"
 	"fmt"
-	"math/rand"
-	"time"
+	"net/http"
 
-	"github.com/google/uuid"
+	"amcosta.dev/encurtador-url/repository"
+	"amcosta.dev/encurtador-url/shortlink"
 )
 
-const availableCharacters = "ABCDEFGHIJKLMNOPQRSTUVXWYZabcdefghijklmnopqrstuvwxyz1234567890-_"
-const shortLinkSize = 8
-const host = "https://short.link/"
+type UrlPostRequest struct {
+	Url string
+}
 
 type Url struct {
 	Id           string `json:"id"`
@@ -20,27 +20,37 @@ type Url struct {
 }
 
 func main() {
-	link := "https://www.google.com"
+	http.HandleFunc("/urls", createUrl)
+	http.ListenAndServe(":8080", nil)
 
-	url := Url{uuid.NewString(), link, fmt.Sprintf("%s%s", host, generateShortedLink())}
+}
 
+func createUrl(w http.ResponseWriter, r *http.Request) {
+	if r.Method != "POST" {
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		fmt.Fprint(w, "Metodo não permitido")
+		return
+	}
+
+	var link UrlPostRequest
+	json.NewDecoder(r.Body).Decode(&link)
+
+	var shortedlink string
+	for {
+		shortedlink = shortlink.New().LinkShorted
+		_, err := repository.FindByShortedLink(shortedlink)
+		if err != nil {
+			break
+		}
+	}
+
+	url := repository.CreateUrl(link.Url, shortedlink)
 	jsonData, err := json.Marshal(url)
 	if err != nil {
 		panic(err)
 	}
 
-	fmt.Println(string(jsonData))
-}
-
-func generateShortedLink() string {
-	var shortedLink string
-	var randomIndex int
-
-	rand.Seed(time.Now().UnixNano())
-	for len(shortedLink) < shortLinkSize {
-		randomIndex = rand.Intn(len(availableCharacters) - 1)
-		shortedLink += string(availableCharacters[randomIndex])
-	}
-
-	return shortedLink
+	w.WriteHeader(http.StatusCreated)
+	w.Header().Add("Content-Type", "application/json")
+	fmt.Fprint(w, string(jsonData))
 }
