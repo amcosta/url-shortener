@@ -2,12 +2,12 @@ package models
 
 import "github.com/google/uuid"
 
-type UrlModel struct {
+type Url struct {
 	Id           string
 	OriginalLink string
 	ShortedLink  string
 }
 
-func (url *UrlModel) Init() {
+func (url *Url) Init() {
 	url.Id = uuid.NewString()
 }

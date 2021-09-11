@@ -1,3 +1,10 @@
+/*
+Sistema encurtador de url
+
+faça uma requisição http e recebe uma url encurtada, estamos trabalhando para gerar métricas de acesso da sua url
+
+Work In Progress
+*/
 package main
 
 import (
@@ -6,9 +13,11 @@ import (
 	"net/http"
 
 	"amcosta.dev/encurtador-url/repository"
+	"amcosta.dev/encurtador-url/services"
 	"amcosta.dev/encurtador-url/shortlink"
 )
 
+// Comentando a estrutura
 type UrlPostRequest struct {
 	Url string
 }
@@ -22,7 +31,6 @@ type Url struct {
 func main() {
 	http.HandleFunc("/urls", createUrl)
 	http.ListenAndServe(":8080", nil)
-
 }
 
 func createUrl(w http.ResponseWriter, r *http.Request) {
@@ -35,16 +43,10 @@ func createUrl(w http.ResponseWriter, r *http.Request) {
 	var link UrlPostRequest
 	json.NewDecoder(r.Body).Decode(&link)
 
-	var shortedlink string
-	for {
-		shortedlink = shortlink.New().LinkShorted
-		_, err := repository.FindByShortedLink(shortedlink)
-		if err != nil {
-			break
-		}
-	}
+	urlRepository := &repository.InMemory{}
+	urlService := services.NewUrlService(urlRepository, shortlink.Generator{})
 
-	url := repository.CreateUrl(link.Url, shortedlink)
+	url := urlService.Create(link.Url)
 	jsonData, err := json.Marshal(url)
 	if err != nil {
 		panic(err)
